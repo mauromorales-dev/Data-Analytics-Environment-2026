@@ -1,0 +1,41 @@
+FROM python:3.12-slim
+
+# 1. Instalar dependencias del sistema esenciales
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    libpq-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. Instalar dbt-core y el adaptador oficial para PostgreSQL
+RUN pip install --no-cache-dir \
+    dbt-core==1.8.0 \
+    dbt-postgres==1.8.0
+
+# 3. Creación limpia del archivo profiles.yml
+RUN mkdir -p /root/.dbt && \
+    printf '%s\n' \
+    "my_project:" \
+    "  target: dev" \
+    "  outputs:" \
+    "    dev:" \
+    "      type: postgres" \
+    "      host: postgres" \
+    "      port: 5432" \
+    "      user: mauro_analyst" \
+    "      password: \"MauroPostgresData2026!\"" \
+    "      dbname: analytics_db" \
+    "      schema: public" \
+    "      threads: 4" \
+    > /root/.dbt/profiles.yml
+
+# 4. Configurar el directorio de trabajo limpio
+WORKDIR /usr/app/dbt
+
+# 5. Inicializar el proyecto SOLAMENTE si la carpeta no existe previamente
+RUN if [ ! -d "my_project" ]; then dbt init my_project --skip-profile-setup; fi
+
+# 6. Mantener el contenedor vivo en segundo plano de manera segura
+ENTRYPOINT ["tail", "-f", "/dev/null"]
